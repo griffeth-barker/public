@@ -6,5 +6,5 @@ This repository is *not* intended to be a reliable source of ready-built solutio
 # Audience
 The primary audience is--well--me. However, I have opted to make this particular repository public-facing so that others who may have similar needs may find inspiration or ideas from the scripts that I've come up with. If that means that you see something here and think "oh I could do it better this way", then that is perfect!
 
-# About the Authro
+# About the Author
 I am an IT systems administrator in the entertainment space working with casinos, bars, restaurants, hotels, etc. I began learning PowerShell in 2018 and have been increasingly leveraging it with every passing year. Typically working on small IT teams, automating tasks is always of interest. I've typically worked in generalist roles, dabbling in PS and automation where I have free time--which is seldom.
