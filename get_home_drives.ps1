@@ -25,7 +25,7 @@
 .OUTPUTS
   N/A
 .NOTES
-  Author:         Griffeth Barker
+  Author:         Griffeth Barker (barkergriffeth@gmail.com)
   Creation Date:  8-6-2022
   Purpose/Change: Initial script development
   
