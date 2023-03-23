@@ -181,7 +181,9 @@ foreach ($Rdm in $RdmArray){
     # Update the RDM Entry
     Write-Host "[$(Get-Timestamp)] $Rdm - Updating RDM entry..."
     try {
-        $EditSession = Get-RDMSession -Name "$Rdm"
+        # Filtered here to make sure you don't go trying to edit Website entries for nodes that may have multiple types
+        # of entries, since the fields we are attempting to update do not exist on Web and other entry types.
+        $EditSession = Get-RDMSession -Name "$Rdm" | Where-Object {$_.ConnectionType -eq "SSHShell" -or $_.ConnectionType -eq "RDPConfigured"}
 
         # You will need to manually replace $ManageEngineServer in the below here/now string. The here/now string
         # is used because we do not want to script to attempt to resolve $CUSTOM_FIELD1$, thus $ManageEngineServer
