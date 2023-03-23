@@ -113,7 +113,9 @@ foreach ($Rdm in $RdmArray){
     if (($Rdm -in $SdpSanitized.Name) -eq $true) {
 
         Write-Host "[$(Get-Timestamp)] $Rdm - Match found, updating entry..." -ForegroundColor Green
-        # CMDB management URL format
+        # CMDB management URL format -- YOU NEED TO MANUALLY REPLACE $ServiceDeskUrl in the below here/now string
+        # The here/now string is used because we do not want the script to attempt to resolve $CUSTOM_FIELD1$
+        # thus $ServiceDeskUrl will not resolve either.
         $AssetMgmtURL = @'
 https://$ServiceDeskUrl/ViewCIDetails.do?ciId=$CUSTOM_FIELD1$&
 '@
