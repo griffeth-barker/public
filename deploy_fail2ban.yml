@@ -85,7 +85,7 @@
     # Since that is more specific to my particular usage, I've left it commented out here.
     #- name: Send ntfy.sh push notification
     #  ansible.builtin.uri:
-    #    url: https://ntfy.sh/403ef61c
+    #    url: https://ntfy.sh/changeme
     #    method: POST
     #    headers: 
     #      title: "☑️ Playbook completed a run"
