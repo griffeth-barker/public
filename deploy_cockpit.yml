@@ -1,0 +1,132 @@
+# SYNOPSIS
+#   This playbook deploys Cockpit for Linux servers.
+# DESCRIPTION
+#   This playbook updates the package cache for the target server, then installs cockpit as well as cockpit-pcp which
+#   is required for handling historical statistics. Once completed, the playbook ensures the service is started/running.
+# PARAMETER <Parameter_Name>
+#   None
+# INPUTS
+#   None
+# OUTPUTS
+#   None
+# NOTES
+#   Updated by:     Barker, Griffeth (barkergriffeth@gmail.com)
+#   Change Date:    2023-10-09
+#   Purpose/Change: Initial development
+#
+#   For more information on Cockpit, see:
+#   https://cockpit-project.org/
+#
+# EXAMPLE
+#   ansible-playbook deploy_cockpit.yml -i your_inventory.yml -u your_user -b
+---
+- name: Deploy Cockpit web GUI for Linux servers
+  hosts: all
+  gather_facts: true
+  become: true
+
+  # Declare variables specific to this playbook
+  vars:
+    ansible_become: true
+    ansible_become_method: sudo
+    ansible_become_user: changeme
+
+  # Execute actions
+  tasks:
+    # Update the remote server's package cache.
+    # This uses two tasks, which will completed only if the
+    # remote server's distribution matches in order to use
+    # the appropriate package manager.
+    - name: Update Package Cache (apt/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: true
+      changed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Update Package Cache (yum/CentOS)
+      ansible.builtin.yum:
+        update_cache: true
+      changed_when: false
+      when: ansible_distribution == "CentOS"
+
+    # Install cockpit
+    - name: Install cockpit
+      ansible.builtin.package:
+        name: cockpit
+        state: present
+
+    # Install cockpit-pcp
+    # This package is required for handling historical
+    # performance statistics in the web portal.
+    - name: Install cockpit-pcp
+      ansible.builtin.package:
+        name: cockpit-pcp
+        state: present
+
+    - name: Download 45Drives cockpit-navigator repository setup script
+      ansible.builtin.shell: curl -sSL curl -sSL https://repo.45drives.com/setup -o setup-repo.sh && sudo bash setup-repo.sh
+
+    # Install cockpit-navigator
+    # This package is optional and provides the ability 
+    # to browse the file system and edit files.
+    - name: Install cockpit-pcp
+      ansible.builtin.package:
+        name: cockpit-navigator
+        state: present
+
+    # Remove default self-signed certificate
+    # Cockpit is initialized with a self-signed certificate
+    # but we can remove this and use our own.
+    - name: Remove default self-signed certificate
+      ansible.builtin.file:
+        path: /etc/cockpit/ws-certs.d/0-self-signed.cert
+        state: absent
+
+    # Remove default self-signed certificate key
+    - name: Remove default self-signed certificate key
+      ansible.builtin.file:
+        path: /etc/cockpit/ws-certs.d/0-self-signed.key
+        state: absent
+
+    # Copy your certificate to the remote server and set its
+    # permissions. For more information on handling certificates
+    # in Cockpit, see https://cockpit-project.org/guide/latest/https.html
+    - name: Copy your SSL certificate
+      ansible.builtin.copy:
+        src: /etc/ssl/certs/your_certificate.cert
+        dest: /etc/cockpit/ws-certs.d/your_certificate.cert
+        owner: root
+        group: root
+        mode: '0644'
+
+    # Copy our certificate key to the remote server and set its
+    # permissions. For more information on handling certificates
+    # in Cockpit, see https://cockpit-project.org/guide/latest/https.html
+    - name: Copy your SSL certificate key
+      ansible.builtin.copy:
+        src: /etc/ssl/certs/your_certificate.key
+        dest: /etc/cockpit/ws-certs.d/your_certificate.key
+        owner: root
+        group: cockpit-ws
+        mode: '0640'
+
+    # Ensure the cockpit service is running
+    - name: Ensure cockpit is running
+      ansible.builtin.service:
+        name: cockpit.service
+        state: started
+        enabled: yes
+
+    # Optional push notification via ntfy.sh
+    # This playbook in my current environment is scheduled/run via Ansible Semaphore,
+    # so the message to refer to the console for results is in reference to that.
+    # Because this is more specific to my current usage at the time of committing this
+    # playbook, I've left this commented out.
+    #- name: Send ntfy.sh push notification
+    #  ansible.builtin.uri:
+    #    url: https://ntfy.sh/changeme
+    #    method: POST
+    #    headers: 
+    #      title: "☑️ Playbook completed a run"
+    #    body: "The playbook to deploye Cockpit to Linux servers has completed a run. Please see the console for results."
+...
