@@ -1,0 +1,93 @@
+# SYNOPSIS
+#   This playbook deploys Fail2Ban for Linux servers.
+# DESCRIPTION
+#   This playbook updates the package cache for the target server, then installs fail2ban. Once completed, the 
+#   playbook configures fail2ban and ensures the service is started/running.
+# PARAMETER <Parameter_Name>
+#   None
+# INPUTS
+#   None
+# OUTPUTS
+#   None
+# NOTES
+#   Updated by:     Barker, Griffeth (barkergriffeth@gmail.com)
+#   Change Date:    2023-10-09
+#   Purpose/Change: Initial development
+#
+#   For more information on fail2ban, see:
+#   https://github.com/fail2ban/fail2ban
+# EXAMPLE
+#   ansible-playbook deploy_fail2ban.yml -i your_inventory.yml -u your_user -b
+---
+- name: Deploy Fail2Ban for Linux servers
+  hosts: all
+  gather_facts: false
+  become: true
+
+   # Declare variables specific to this playbook
+  vars:
+    ansible_become: true
+    ansible_become_method: sudo
+    ansbile_become_password: "changeme"
+  
+  # Execute actions
+  tasks:
+    # Update the remote server's package cache.
+    # This uses two tasks, which will completed only if the
+    # remote server's distribution matches in order to use
+    # the appropriate package manager.
+    - name: Update Package Cache (apt/Ubuntu)
+      ansible.builtin.apt:
+        update_cache: yes
+      changed_when: false
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Update Package Cache (dnf/CentOS)
+      ansible.builtin.yum:
+        update_cache: yes
+      changed_when: false
+      when: ansible_distribution == "CentOS"
+
+    # Install fail2ban
+    - name: Install fail2ban
+      ansible.builtin.package:
+        name: fail2ban
+        state: present
+    
+    # Configure fail2ban
+    - name: Copy desired fail2ban configuration file from jeirepo to target node
+      ansible.builtin.copy:
+        src: /home/user/repo/ansible/configs/fail2ban.local
+        dest: /etc/fail2ban/fail2ban.local
+        owner: root
+        group: root
+        mode: '0644'
+
+    # Configure jails
+    - name: Copy desired jail configuration file from jeirepo to target node
+      ansible.builtin.copy:
+        src: /home/user/repo/ansible/configs/jail.local
+        dest: /etc/fail2ban/jail.local
+        owner: root
+        group: root
+        mode: '0644'
+
+    # Ensure the fail2ban service is running
+    - name: Ensure fail2ban is running
+      ansible.builtin.service:
+        name: fail2ban.service
+        state: started
+        enabled: yes
+
+    # Optional push notification via ntfy.sh
+    # This playbook was written with the intent of being scheduled in Ansible Semaphore,
+    # so the message to refer to the console for results is in reference to that.
+    # Since that is more specific to my particular usage, I've left it commented out here.
+    #- name: Send ntfy.sh push notification
+    #  ansible.builtin.uri:
+    #    url: https://ntfy.sh/403ef61c
+    #    method: POST
+    #    headers: 
+    #      title: "☑️ Playbook completed a run"
+    #    body: "The playbook to deploy Fail2Ban to Linux servers has completed a run. Please see the console for results."
+...
