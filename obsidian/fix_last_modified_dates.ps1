@@ -43,8 +43,9 @@ $notes = @(Get-ChildItem -Path "$vault\*.md" -Recurse | Select-Object -ExpandPro
 foreach ($note in $notes) {
 
     # Get LastWriteTime of the note from the YAML properties in the frontmatter of the note
-    $last_write_time = (get-content -path "$note" | Select-String "Last Update" -SimpleMatch | Out-String).split(" ")[2]
+    $last_write_time = (Get-Content -path "$note" | Select-String "Last Update" -SimpleMatch | Out-String).split(" ")[2]
 
     # Set the LastWriteTime of the note to the value we got from the properties inside the note
     (Get-Item -Path "$note").LastWriteTime = $last_write_time
+    
 }
