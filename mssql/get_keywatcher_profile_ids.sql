@@ -1,7 +1,7 @@
 /***************************************************************************************************
 Create Date:        2018-01-01
 
-Author:             Barker, Griffeth (gbarker@bhwk.com)
+Author:             Barker, Griffeth (barkergriffeth@gmail.com)
 
 Description:        This query returns the ID, ProfileNo, and Name of KeyWatcher TrueTouch profiles.
 
