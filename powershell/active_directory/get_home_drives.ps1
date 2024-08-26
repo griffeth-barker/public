@@ -26,7 +26,7 @@
   N/A
 .NOTES
   Author:         Griffeth Barker (barkergriffeth@gmail.com)
-  Creation Date:  8-6-2022
+  Creation Date:  2022-08-06
   Purpose/Change: Initial script development
   
   This script requires the PSFolderSize and ActiveDirectory modules; the script will check for these modules and attempt
