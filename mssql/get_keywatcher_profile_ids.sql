@@ -5,7 +5,7 @@ Author:             Barker, Griffeth (barkergriffeth@gmail.com)
 
 Description:        This query returns the ID, ProfileNo, and Name of KeyWatcher TrueTouch profiles.
 
-Affected table(s):  [EKO_KWT_KWMain2.dbo.tblProfile]
+Affected table(s):  [KWMain2.dbo.tblProfile]
 
 Used By:            IT systems administrators use this script at the request of Accounting personnel.
 
@@ -21,6 +21,7 @@ SUMMARY OF CHANGES
 Date(yyyy-mm-dd)    Author              Comments
 ------------------- ------------------- ------------------------------------------------------------
 2018-01-01          Barker, Griffeth    Initial development
+2024-08-26          Barker, Griffeth    Generalize environment
 
 ***************************************************************************************************/
 
