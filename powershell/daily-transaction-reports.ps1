@@ -1,15 +1,16 @@
 <#
 .SYNOPSIS
-  This script generates prior day transaction reports.
+  This script receives daily files from a third party vendor's SFTP server.
 .DESCRIPTION
-  This script connects to an SFTP server for a third-party vendor, downloads account transaction files
-  for each account, parses the transactions, and outputs PDF reports for each account to a network
-  share for review by accounting personnel.
+  This script conencts to the third party's SFTP server, locates the daily transaction files
+  containing the previous day's transactions (based on a LastWriteTime of the current date), and
+  copies those files to the designated directory.
 
-  This was borne out of necessity when a prior company switched vendors. Their previous vendor had a
-  paid product that did nice reporting for the accounting team, but the new vendor did not. This script
-  replicates what they had with the prior vendor by taking a single CSV file full of transactions,
-  splitting them up by account, and then generating PDF reports for those accounts on a daily basis.
+  This script requires the appropriate SSH key for the SFTP site to be added and decrypted in PAGEANT,
+  and that PAGEANT is running on the server running the script. This could be modified to use the
+  inbuilt OpenSSH client in Windows, provided the environment and vendor supports that.
+
+  This script is intended to be run unattended, on a daily schedule.
 .INPUTS
   None
 .OUTPUTS
@@ -23,13 +24,10 @@
   GitHub using the AGPL license.  The usage of this script should not require the purchase of a 
   commercial license. See GitHub for additional information.  https://github.com/itext/itext7-dotnet
 
-  This script requires:
-    - WinSCP installed
-    - PAGEANT installed and configured with the valid SSH key decrypted
-
-  This script is intended to be run unattended, on a daily schedule.
+  This script is provided here not so much for the purpose of someone re-using it elsewhere, but more so
+  to show a problem and how it was solved.
 .EXAMPLE
-  .\daily-transaction-reports.ps1
+  None
 #>
 
 ##########################################################################################################
@@ -45,30 +43,31 @@ function Get-TimeStamp {
 $sys_year = Get-Date -Format yyyy
 
 # Check for temporary working directory and create it if missing.
-Write-Host "Checking for C:\VendorSFTP..."
-$WorkingDir = "C:\VendorSFTP"
+Write-Host "Checking for C:\VendorNameSFTP..."
+$WorkingDir = "C:\VendorNameSFTP"
 if (Test-Path -Path $WorkingDir) {
   Write-Host "Found $WorkingDir - proceeding..."
 }
 else {
   Write-Host "Could not find $WorkingDir - creating it now..."
-  New-Item -Path "C:\" -Name "VendorSFTP" -ItemType "directory" -Force
+  New-Item -Path "C:\" -Name "VendorNameSFTP" -ItemType "directory" -Force
   Write-Host "Created $WorkingDir - proceeding..."
 }
 Set-Location -Path $WorkingDir
 
 # Check for current year destination folder for each account
 $map_year_paths = @(
-  "\\contoso.com\VendorName\AccountName1\$sys_year",
-  "\\contoso.com\VendorName\AccountName2\$sys_year",
-  "\\contoso.com\VendorName\AccountName3\$sys_year",
-  "\\contoso.com\VendorName\AccountName4\$sys_year",
-  "\\contoso.com\VendorName\AccountName5\$sys_year",
-  "\\contoso.com\VendorName\AccountName6\$sys_year",
-  "\\contoso.com\VendorName\AccountName7\$sys_year",
+  "\\contoso.com\VendorName\Account1Name\$sys_year",
+  "\\contoso.com\VendorName\Account2Name\$sys_year",
+  "\\contoso.com\VendorName\Account3Name\$sys_year",
+  "\\contoso.com\VendorName\Account4Name\$sys_year",
+  "\\contoso.com\VendorName\Account5Name\$sys_year",
+  "\\contoso.com\VendorName\Account6Name\$sys_year",
+  "\\contoso.com\VendorName\Account7Name\$sys_year"
 )
 Write-Host "Checking for account folders ..."
 foreach ($map_year_path in $map_year_paths) { 
+  $DFSNameSpace = $map_year_path.split("\")[3]
   Write-Host "Checking for $map_year_path ..."
   if (Test-Path -Path $map_year_path) {
     Write-Host "Found $map_year_path - proceeding ..."
@@ -76,21 +75,8 @@ foreach ($map_year_path in $map_year_paths) {
   else {
     Write-Host "Could not find $map_year_path - creating it now ..."
     $map_path_root = $map_year_path.split("\")[4]
-    New-Item -Path "\\contoso.com\VendorName\$map_path_root" -Name "$sys_year" -ItemType "directory" -Force
+    New-Item -Path "\\contoso.com\$DFSNameSpace\$map_path_root" -Name "$sys_year" -ItemType "directory" -Force
     Write-Host "Created $map_year_path - proceeding..."
-  }
-}
-Write-Host "Checking for Vendor folders ..."
-foreach ($map_year_path in $map_year_paths) { 
-  Write-Host "Checking for $map_year_path\Vendor ..."
-  if (Test-Path -Path "$map_year_path\$sys_year\Vendor") {
-    Write-Host "Found $map_year_path\Vendor - proceeding ..."
-  }
-  else {
-    Write-Host "Could not find $map_year_path\Vendor - creating it now ..."
-    $map_path_root = $map_year_path.split("\")[4]
-    New-Item -Path "\\contoso.com\VendorName\$map_path_root\$sys_year" -Name "Vendor" -ItemType "directory" -Force
-    Write-Host "Created $map_year_path\Vendor - proceeding..."
   }
 }
 
@@ -146,7 +132,7 @@ catch {
 # is created using the username and a null value, rather than an empty string. This can be reconfigured 
 # as needed based on the available credentials.
 $sftp_user = "changeme"
-$sftp_host = "sftp.vendor.com"
+$sftp_host = "changeme"
 $sftp_creds = New-Object System.Management.Automation.PSCredential("$sftp_user", (New-Object System.Security.SecureString))
 $sftp_host_fprint = "changeme"
 
@@ -165,9 +151,10 @@ catch {
 }
 
 # Download the file with transactions from the previous day
-Write-Host "[$(Get-Timestamp)] Obtaining daily file..."
+Write-Host "[$(Get-Timestamp)] Obtaining daily files..."
 try {
 
+  # Download daily CSV file
   $remote_file_path = (
     Get-WinSCPChildItem -WinSCPSession $sftp_session -Path "/Previous_Day_Files" | Sort-Object LastWriteTime -Descending | Where-Object {
       $_.Name -like "CSV*"
@@ -178,8 +165,22 @@ try {
     } | Select-Object * -First 1).Name
 
   Receive-WinSCPItem -WinSCPSession $sftp_session -RemotePath $remote_file_path -LocalPath "$workingDir\$remote_file_name.csv"
+  Copy-Item -Path "$workingDir\$remote_file_name.csv" -Destination "\\contoso.com\VendorName\CSV-BAI\$sys_year\$remote_file_name.csv"
 
-  Write-Host "[$(Get-Timestamp)] Obtaining daily file... SUCCESS!"
+
+  # Download daily BAI file
+  $remote_bai_path = (
+    Get-WinSCPChildItem -WinSCPSession $sftp_session -Path "/Previous_Day_Files" | Sort-Object LastWriteTime -Descending | Where-Object {
+      $_.Name -like "2913980*"
+    } | Select-Object * -First 1).FullName
+  $remote_bai_name = (
+    Get-WinSCPChildItem -WinSCPSession $sftp_session -Path "/Previous_Day_Files" | Sort-Object LastWriteTime -Descending | Where-Object {
+      $_.Name -like "2913980*"
+    } | Select-Object * -First 1).Name
+
+  Receive-WinSCPItem -WinSCPSession $sftp_session -RemotePath $remote_bai_path -LocalPath "\\contoso.com\VendorName\CSV-BAI\$sys_year\$remote_bai_name"
+
+  Write-Host "[$(Get-Timestamp)] Obtaining daily files... SUCCESS!"
 
   Close-WinSCPSession -WinSCPSession $sftp_session -Confirm:$false
 
@@ -204,38 +205,38 @@ foreach ($account in $accounts) {
   # Per-account settings
   switch ($account) {
     AccountNumber1 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account1Name\$sys_year"
+      $acct_friendly_name = "AccountNumber1Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber2 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account2Name\$sys_year"
+      $acct_friendly_name = "AccountNumber2Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber3 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account3Name\$sys_year"
+      $acct_friendly_name = "AccountNumber3Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber4 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account4Name\$sys_year"
+      $acct_friendly_name = "AccountNumber4Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber5 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account5Name\$sys_year"
+      $acct_friendly_name = "AccountNumber5Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber6 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account6Name\$sys_year"
+      $acct_friendly_name = "AccountNumber6Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
     AccountNumber7 {
-      $map = "\\contoso.com\VendorName\AccountName\$sys_year\Vendor"
-      $acct_friendly_name = "AccountName"
+      $map = "\\contoso.com\VendorName\Account7Name\$sys_year"
+      $acct_friendly_name = "AccountNumber7Name"
       $acct_num_last4 = $account.ToString().Substring(($account.ToString().Length - 4))
     }
   }
@@ -315,10 +316,10 @@ foreach ($account in $accounts) {
     New-PDFText -Text "Transactions (Prior Day)" -Font HELVETICA -FontColor BLACK -FontBold $true
     New-PDFTable -DataTable $datatable_sanitized
     New-PDFText -Text "This PDF was generated automatically." -Font HELVETICA_OBLIQUE -FontColor BLACK
-  } -FilePath "$map\PriorDayTrans_$($account)_$(Get-Date -Format yyyyMMdd).pdf"
+  } -FilePath "$map\WAB_PriorDayTrans_$($account)_$(Get-Date -Format yyyyMMdd).pdf"
 
   Start-Sleep -Seconds 5
 
 }
 
-Remove-Item "C:\VendorSFTP\conv_temp*.csv" -Confirm:$false -Force
+Remove-Item "C:\VendorNameSFTP\conv_temp*.csv" -Confirm:$false -Force
