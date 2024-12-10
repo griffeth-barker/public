@@ -20,10 +20,10 @@
 
   This script is intended to be run via the Windows Task Scheduled on a server.
   This script requires the ActiveDirectory PowerShell module and permissions to query Active Directory.
-.EXAMPLE 
+.EXAMPLE
   # Send email notifications to users with passwords expiring within the next 30 days.
  .\Invoke-ADPasswordExpiryReminder.ps1 -TimeSpan 30
-.EXAMPLE 
+.EXAMPLE
   # Send email notifications to users with passwords expiring within the next 7 days.
  .\Invoke-ADPasswordExpiryReminder.ps1 -TimeSpan 7
 #>
@@ -58,9 +58,9 @@ Begin {
   }
   Import-Module ActiveDirectory
 
-  function Get-ADPasswordExpiryUsers {
+  function Get-ADPasswordExpiryUser {
     Get-ADUser -SearchBase "$orgSearchBase" -Filter {Enabled -eq $True -and PasswordNeverExpires -eq $False} -Properties DisplayName, msDS-UserPasswordExpiryTimeComputed, mail | `
-    Where-Object { 
+    Where-Object {
       $_.DistinguishedName -like "*Users*" -and `
       [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") -lt (Get-Date).AddDays($TimeSpan) -and `
       [datetime]::FromFileTime($_."msDS-UserPasswordExpiryTimeComputed") -ge (Get-Date) -and `
@@ -70,7 +70,7 @@ Begin {
 }
 
 Process {
-  $userList = Get-ADPasswordExpiryUsers -TimeSpan $TimeSpan
+  $userList = Get-ADPasswordExpiryUser -TimeSpan $TimeSpan
 
   foreach ($u in $userList) {
     $expiration = [datetime]::FromFileTime($u."msDS-UserPasswordExpiryTimeComputed")
