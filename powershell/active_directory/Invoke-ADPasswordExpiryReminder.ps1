@@ -56,8 +56,13 @@ Begin {
   if (-not (Get-Module -ListAvailable -Name ActiveDirectory)) {
     throw "The ActiveDirectory Powershell module is not available. Please install it before running this script."
   }
-  Import-Module ActiveDirectory
-
+  try {
+    Import-Module ActiveDirectory
+    Write-Output "Successfully imported ActiveDirectory PowerShell module."
+  }
+  catch {
+    Write-Error $_.Exception
+  }
   function Get-ADPasswordExpiryUser {
     Get-ADUser -SearchBase "$orgSearchBase" -Filter {Enabled -eq $True -and PasswordNeverExpires -eq $False} -Properties DisplayName, msDS-UserPasswordExpiryTimeComputed, mail | `
     Where-Object {
@@ -70,8 +75,13 @@ Begin {
 }
 
 Process {
-  $userList = Get-ADPasswordExpiryUser -TimeSpan $TimeSpan
-
+  try {
+    $userList = Get-ADPasswordExpiryUser -TimeSpan $TimeSpan
+    Write-Output "Found $($userList.Count) users with passwords expiring within the next $TimeSpan days."
+  {
+  catch {
+    Write-Error $_.Exception
+  }
   foreach ($u in $userList) {
     $expiration = [datetime]::FromFileTime($u."msDS-UserPasswordExpiryTimeComputed")
     $expdays = (New-Timespan -Start (Get-Date) -End $expiration).Days
@@ -109,7 +119,13 @@ Process {
       BodyAsHtml = $true
       SmtpServer = "$orgSmtpServer"
     }
+    try {
       Send-MailMessage @msgParams
+      Write-Output "Sent notification to $($u.mail) about password expiry in $($expdays) $($ddisplay)."
+    }
+    catch {
+      Write-Error $_.Exception
+    }
   }
 }
 
